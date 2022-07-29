@@ -85,6 +85,7 @@ namespace StonehearthEditor
         {
             mChromeBrowser.Load(GetPagePath(pageName));
         }
+
         public class RenderProcessMessageHandler : IRenderProcessMessageHandler
         {
             // Wait for the underlying `Javascript Context` to be created, this is only called for the main frame.
@@ -118,20 +119,53 @@ namespace StonehearthEditor
 
         public void Refresh()
         {
-            // HAX HAX HAX !!!
-            if (Directory.Exists(@"..\..\..\pages"))
-            {
-                Directory.Delete("pages", true);
-                Process proc = new Process();
-                proc.StartInfo.UseShellExecute = false;
-                proc.StartInfo.CreateNoWindow = true;
-                proc.StartInfo.FileName = @"C:\WINDOWS\system32\xcopy.exe";
-                proc.StartInfo.Arguments = @"..\..\..\pages pages /E /I";
-                proc.Start();
-                proc.WaitForExit();
-            }
+            string sourceDir = @"..\..\..\pages";
+            string destinationDir = @"pages";
+
+            CopyDirectory(sourceDir, destinationDir, true);
+
             mChromeBrowser.RenderProcessMessageHandler = new RenderProcessMessageHandler(mEffectKind, mJson);
             mChromeBrowser.Reload(true);
+        }
+
+        private static void CopyDirectory(string sourceDirectory, string targetDirectory, bool recursive)
+        {
+            // Get information about the source directory
+            var sourceDir = new DirectoryInfo(sourceDirectory);
+
+            // Get information about the target directory
+            var targetDir = new DirectoryInfo(targetDirectory);
+
+            // Check if the source directory exists
+            if (!sourceDir.Exists)
+                throw new DirectoryNotFoundException($"Source directory not found: {sourceDir.FullName}");
+
+            // delete directory if exixtes
+            if (targetDir.Exists)
+                Directory.Delete(targetDirectory, true);
+
+            // Cache directories before we start copying
+            DirectoryInfo[] dirs = sourceDir.GetDirectories();
+
+            // Create the destination directory
+            Directory.CreateDirectory(targetDirectory);
+
+            // Get the files in the source directory and copy to the destination directory
+            foreach (FileInfo file in sourceDir.GetFiles())
+            {
+                string targetFilePath = Path.Combine(targetDirectory, file.Name);
+                file.CopyTo(targetFilePath);
+            }
+
+            // If recursive and copying subdirectories, recursively call this method
+            if (recursive)
+            {
+                foreach (DirectoryInfo subDir in dirs)
+                {
+                    string newDestinationDir = Path.Combine(targetDirectory, subDir.Name);
+                    CopyDirectory(subDir.FullName, newDestinationDir, true);
+                }
+            }
         }
     }
 }
